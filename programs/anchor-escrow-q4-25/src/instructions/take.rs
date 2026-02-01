@@ -1,6 +1,6 @@
 #![allow(unused_imports)]
 
-use anchor_lang::prelude::*;
+use anchor_lang::{prelude::*, system_program::Transfer};
 
 use anchor_spl::{
     associated_token::AssociatedToken,
@@ -62,7 +62,7 @@ pub struct Take<'info> {
         associated_token::authority = escrow,
         associated_token::token_program = token_program
     )]
-    pub vault: InterfaceAccount<'info, TokenAccount>,
+    pub escrow_vault: InterfaceAccount<'info, TokenAccount>,
 
     pub associated_token_program: Program<'info, AssociatedToken>,
     pub token_program: Interface<'info, TokenInterface>,
@@ -72,4 +72,13 @@ pub struct Take<'info> {
 impl<'info> Take<'info> {
     //  TODO: Implement Take Instruction
     //  Includes Deposit, Withdraw and Close Vault
+    pub fn vault_transfer(&mut self)-> Result<()>{
+        let transferacc= TransferChecked{
+        from:self.escrow_vault.to_account_info(),
+        mint:self.mint_a.to_account_info(),
+        to:self.taker_ata_a.to_account_info(),
+        authority:self.escrow.to_account_info()
+        }
+        Ok(())
+    }
 }

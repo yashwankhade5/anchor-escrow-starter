@@ -72,22 +72,58 @@ pub struct Take<'info> {
 impl<'info> Take<'info> {
     //  TODO: Implement Take Instruction
     //  Includes Deposit, Withdraw and Close Vault
-    pub fn vault_transfer(&mut self)-> Result<()>{
-        let transferacc= TransferChecked{
-        from:self.escrow_vault.to_account_info(),
-        mint:self.mint_a.to_account_info(),
-        to:self.taker_ata_a.to_account_info(),
-        authority:self.escrow.to_account_info()
+  pub fn deposit(&mut self) -> Result<()> {
+        let transferacc = TransferChecked {
+            from: self.escrow_vault.to_account_info(),
+            mint: self.mint_a.to_account_info(),
+            to: self.taker_ata_a.to_account_info(),
+            authority: self.escrow.to_account_info(),
         };
         let seeds = &self.escrow.seed.to_le_bytes();
-        let signer_seeds&{&[&[u8]]} =&[&[b"escrow",self.escrow.maker.as_ref(),
-        seeds.as_ref(),&[self.escrow.bump]]];
-          let cpi_ctx = CpiContext::new_with_signer(
+        let signer_seeds: &[&[&[u8]]] = &[&[
+            "escrow".as_bytes(),
+            &self.escrow.maker.as_ref(),
+            seeds.as_ref(),
+            &[self.escrow.bump],
+        ]];
+        let cpi_ctx = CpiContext::new_with_signer(
             self.token_program.to_account_info(),
             transferacc,
             signer_seeds,
         );
-        transfer_checked(cpi_ctx, self.escrow_vault.amount, self.mint_a.decimals)?;
-        Ok(())
+        transfer_checked(cpi_ctx, self.escrow_vault.amount, self.mint_a.decimals)
+    }
+
+     pub fn withdraw(&mut self) -> Result<()> {
+        let transfer_account = TransferChecked {
+            from: self.taker_ata_b.to_account_info(),
+            to: self.maker_ata_b.to_account_info(),
+            mint: self.mint_b.to_account_info(),
+            authority: self.taker.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new(self.token_program.to_account_info(), transfer_account);
+
+        transfer_checked(cpi_ctx, self.escrow.receive, self.mint_b.decimals)
+    }
+
+    pub fn close_vault(&mut self) -> Result<()> {
+        let seeds = &self.escrow.seed.to_le_bytes();
+        let signer_seeds: &[&[&[u8]]] = &[&[
+            "escrow".as_bytes(),
+            &self.escrow.maker.as_ref(),
+            seeds.as_ref(),
+            &[self.escrow.bump],
+        ]];
+        let close_accounts = CloseAccount {
+            account: self.escrow_vault.to_account_info(),
+            destination: self.taker.to_account_info(),
+            authority: self.escrow.to_account_info(),
+        };
+        let cpi_ctx = CpiContext::new_with_signer(
+            self.token_program.to_account_info(),
+            close_accounts,
+            signer_seeds,
+        );
+        close_account(cpi_ctx)
     }
 }
